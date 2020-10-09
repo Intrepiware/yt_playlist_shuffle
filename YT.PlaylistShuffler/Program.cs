@@ -15,6 +15,7 @@ namespace YT.PlaylistShuffler
     class Program
     {
         const string PLAYLIST_WORKOUT_ITEMS = "PL1cTD7ZEXOq3WuIIN4XeGZLxgUqmuvaEs";
+        static Random _random = new Random();
 
         static async Task Main(string[] args)
         {
@@ -65,8 +66,8 @@ namespace YT.PlaylistShuffler
 
         private static async Task ShufflePlaylistVideos(YouTubeService youtubeService, string playlistId)
         {
-            var playlistItems = new Dictionary<string, string>();
-            var itemsRequest = youtubeService.PlaylistItems.List("snippet,contentDetails");
+            var playlistItems = new HashSet<string>();
+            var itemsRequest = youtubeService.PlaylistItems.List("contentDetails");
             itemsRequest.PlaylistId = playlistId;
             itemsRequest.MaxResults = 50;
 
@@ -76,17 +77,17 @@ namespace YT.PlaylistShuffler
                 results = await itemsRequest.ExecuteAsync();
                 foreach (var item in results.Items)
                 {
-                    playlistItems.Add(item.ContentDetails.VideoId, item.Snippet.Title);
+                    playlistItems.Add(item.ContentDetails.VideoId);
                 }
                 itemsRequest.PageToken = results.NextPageToken;
             }
             while (results.NextPageToken != null);
 
-            var shuffled = Shuffle(playlistItems.Keys.ToList());
+            var shuffled = Shuffle(playlistItems.ToList(), 7);
 
             var newPlaylist = new Playlist();
             newPlaylist.Snippet = new PlaylistSnippet();
-            newPlaylist.Snippet.Title = "Workout Mix." + DateTime.Now.ToString("yyyyMMdd");
+            newPlaylist.Snippet.Title = $"Workout Mix ({DateTime.Now:yyyyMMdd})";
             newPlaylist.Snippet.Description = "Re-shuffled Workout Playlist";
             newPlaylist.Status = new PlaylistStatus();
             newPlaylist.Status.PrivacyStatus = "public";
@@ -107,14 +108,13 @@ namespace YT.PlaylistShuffler
             Console.WriteLine($"Successfully shuffled {shuffled.Count} items into new playlist \"{newPlaylist.Snippet.Title}\"");
         }
 
-        private static List<string> Shuffle(List<string> items)
+        private static List<string> Shuffle(List<string> items, int count)
         {
             var output = new string[items.Count];
-            var rand = new Random();
 
             for (var i = 0; i < items.Count; i++)
             {
-                var next = rand.Next(0, items.Count);
+                var next = _random.Next(0, items.Count);
                 if (output[next] == null)
                 {
                     output[next] = items[i];
@@ -125,7 +125,7 @@ namespace YT.PlaylistShuffler
                 }
             }
 
-            return output.ToList();
+            return (--count <= 0) ? output.ToList() : Shuffle(output.ToList(), count);
         }
     }
 }
