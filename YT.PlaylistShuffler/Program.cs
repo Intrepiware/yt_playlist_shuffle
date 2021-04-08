@@ -102,7 +102,23 @@ namespace YT.PlaylistShuffler
             foreach (var shuffleItem in shuffled)
             {
                 newPlaylistItem.Snippet.ResourceId.VideoId = shuffleItem;
-                newPlaylistItem = await youtubeService.PlaylistItems.Insert(newPlaylistItem, "snippet").ExecuteAsync();
+
+                for(var attempts = 1; attempts < 3; attempts++)
+                {
+                    try
+                    {
+                        newPlaylistItem = await youtubeService.PlaylistItems.Insert(newPlaylistItem, "snippet").ExecuteAsync();
+                        break;
+                    }
+                    catch (Exception ex) when (attempts < 3)
+                    {
+                        Console.WriteLine($"Having a little trouble inserting {newPlaylistItem.Id} into the playlist ({ex.Message}); Retrying...");
+                    }
+                    catch
+                    {
+                        Console.WriteLine($"Could not insert {newPlaylistItem.Id} after {++attempts}; Skipping.");
+                    }
+                }
             }
 
             Console.WriteLine($"Successfully shuffled {shuffled.Count} items into new playlist \"{newPlaylist.Snippet.Title}\"");
